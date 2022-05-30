@@ -13,7 +13,7 @@ namespace LW.IO.App.ViewModels
 
         [Required(ErrorMessage = "O campo {0} é obrigatório")]
         [DisplayName("Fornecedor")]
-        public int FornecedorId { get; set; }
+        public Guid FornecedorId { get; set; }
 
         [Required(ErrorMessage = "O campo {0} é obrigatório")]
         [StringLength(200, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
@@ -24,6 +24,7 @@ namespace LW.IO.App.ViewModels
         [StringLength(1000, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
         public string Descricao { get; set; }
 
+        [DisplayName("Imagem do Produto")]
         public IFormFile ImagemUpload { get; set; }
 
         public string Imagem { get; set; }

@@ -22,4 +22,8 @@
     <ProjectReference Include="..\LW.IO.Data\LW.IO.Data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\imagens\" />
+  </ItemGroup>
+
 </Project>
