@@ -1,10 +1,11 @@
 ﻿using AutoMapper;
+using LW.IO.App.Extensions;
 using LW.IO.App.ViewModels;
 using LW.IO.Business.Interfaces;
 using LW.IO.Business.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace LW.IO.App.Controllers
 {
+    [Authorize]
     public class ProdutosController : BaseController
     {
         private readonly IProdutoRepository _produtoRepository;
@@ -19,9 +21,11 @@ namespace LW.IO.App.Controllers
         private readonly IProdutoService _produtoService;
         private readonly IMapper _mapper;
 
-        public ProdutosController(IProdutoRepository produtoRepository, 
-            IFornecedorRepository fornecedorRepository, IMapper mapper,
-            IProdutoService produtoService, INotificador notificador) : base(notificador)
+        public ProdutosController(IProdutoRepository produtoRepository,
+                                  IFornecedorRepository fornecedorRepository,
+                                  IMapper mapper,
+                                  IProdutoService produtoService,
+                                  INotificador notificador) : base(notificador)
         {
             _produtoRepository = produtoRepository;
             _fornecedorRepository = fornecedorRepository;
@@ -29,17 +33,19 @@ namespace LW.IO.App.Controllers
             _produtoService = produtoService;
         }
 
+        [AllowAnonymous]
         [Route("lista-de-produtos")]
         public async Task<IActionResult> Index()
         {
-
             return View(_mapper.Map<IEnumerable<ProdutoViewModel>>(await _produtoRepository.ObterProdutosFornecedores()));
         }
 
+        [AllowAnonymous]
         [Route("dados-do-produto/{id:guid}")]
         public async Task<IActionResult> Details(Guid id)
         {
             var produtoViewModel = await ObterProduto(id);
+
             if (produtoViewModel == null)
             {
                 return NotFound();
@@ -48,20 +54,21 @@ namespace LW.IO.App.Controllers
             return View(produtoViewModel);
         }
 
+        [ClaimsAuthorize("Produto", "Adicionar")]
         [Route("novo-produto")]
         public async Task<IActionResult> Create()
         {
             var produtoViewModel = await PopularFornecedores(new ProdutoViewModel());
+
             return View(produtoViewModel);
         }
 
+        [ClaimsAuthorize("Produto", "Adicionar")]
         [Route("novo-produto")]
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProdutoViewModel produtoViewModel)
         {
             produtoViewModel = await PopularFornecedores(produtoViewModel);
-
             if (!ModelState.IsValid) return View(produtoViewModel);
 
             var imgPrefixo = Guid.NewGuid() + "_";
@@ -75,9 +82,10 @@ namespace LW.IO.App.Controllers
 
             if (!OperacaoValida()) return View(produtoViewModel);
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("Index");
         }
 
+        [ClaimsAuthorize("Produto", "Editar")]
         [Route("editar-produto/{id:guid}")]
         public async Task<IActionResult> Edit(Guid id)
         {
@@ -87,12 +95,13 @@ namespace LW.IO.App.Controllers
             {
                 return NotFound();
             }
+
             return View(produtoViewModel);
         }
 
+        [ClaimsAuthorize("Produto", "Editar")]
         [Route("editar-produto/{id:guid}")]
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, ProdutoViewModel produtoViewModel)
         {
             if (id != produtoViewModel.Id) return NotFound();
@@ -100,8 +109,6 @@ namespace LW.IO.App.Controllers
             var produtoAtualizacao = await ObterProduto(id);
             produtoViewModel.Fornecedor = produtoAtualizacao.Fornecedor;
             produtoViewModel.Imagem = produtoAtualizacao.Imagem;
-            
-
             if (!ModelState.IsValid) return View(produtoViewModel);
 
             if (produtoViewModel.ImagemUpload != null)
@@ -124,39 +131,42 @@ namespace LW.IO.App.Controllers
 
             if (!OperacaoValida()) return View(produtoViewModel);
 
-            return RedirectToAction(nameof(Index));
-
+            return RedirectToAction("Index");
         }
 
+        [ClaimsAuthorize("Produto", "Excluir")]
         [Route("excluir-produto/{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var produto = await ObterProduto(id);
+
             if (produto == null)
             {
                 return NotFound();
             }
+
             return View(produto);
         }
 
+        [ClaimsAuthorize("Produto", "Excluir")]
         [Route("excluir-produto/{id:guid}")]
         [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             var produto = await ObterProduto(id);
+
             if (produto == null)
             {
                 return NotFound();
             }
-            
+
             await _produtoService.Remover(id);
 
             if (!OperacaoValida()) return View(produto);
 
             TempData["Sucesso"] = "Produto excluido com sucesso!";
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("Index");
         }
 
         private async Task<ProdutoViewModel> ObterProduto(Guid id)
@@ -172,25 +182,24 @@ namespace LW.IO.App.Controllers
             return produto;
         }
 
-        private async Task<bool> UploadArquivo(IFormFile imagemUpload, string imgPrefixo)
+        private async Task<bool> UploadArquivo(IFormFile arquivo, string imgPrefixo)
         {
-            if (imagemUpload == null || imagemUpload.Length <= 0) return false;
+            if (arquivo.Length <= 0) return false;
 
-            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/imagens", imgPrefixo + imagemUpload.FileName);
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/imagens", imgPrefixo + arquivo.FileName);
 
             if (System.IO.File.Exists(path))
             {
-                ModelState.AddModelError(string.Empty, "Já existe um arquivo com este nome");
+                ModelState.AddModelError(string.Empty, "Já existe um arquivo com este nome!");
                 return false;
             }
 
             using (var stream = new FileStream(path, FileMode.Create))
             {
-                await imagemUpload.CopyToAsync(stream);
+                await arquivo.CopyToAsync(stream);
             }
 
             return true;
-
         }
     }
 }
