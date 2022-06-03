@@ -1,4 +1,6 @@
 ﻿using LW.IO.Business.Interfaces;
+using LW.IO.Business.Notifications;
+using LW.IO.Business.Services;
 using LW.IO.Data.Context;
 using LW.IO.Data.Repository;
 using Microsoft.AspNetCore.Mvc.DataAnnotations;
@@ -17,6 +19,10 @@ namespace LW.IO.App.Configurations
             services.AddScoped<IFornecedorRepository, FornecedorRepository>();
             services.AddScoped<IEnderecoRepository, EnderecoRepository>();
             services.AddSingleton<IValidationAttributeAdapterProvider, MoedaValidationAttributeAdapterProvider>();
+
+            services.AddScoped<INotificador, Notificador>();
+            services.AddScoped<IFornecedorService, FornecedorService>();
+            services.AddScoped<IProdutoService, ProdutoService>();
 
             return services;
         }
